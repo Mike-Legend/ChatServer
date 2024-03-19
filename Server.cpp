@@ -248,8 +248,8 @@ int Server::init(uint16_t port, int capacity, char commandChar)
 
 std::string Server::processMessage(SOCKET clientSocket, const char* message, int length) {
 	//check commands
+	std::string cmdChar(1, commandChar);
 	if (message[0] == commandChar && strncmp(message + 1, "help", 4) == 0) {
-		std::string cmdChar(1, commandChar);
 		return "Available commands:\n" + cmdChar + "help - Display available commands\n" + cmdChar + "register (username) (password) - Creates a registered account for the user\n";
 	}
 	else if (message[0] == commandChar && strncmp(message + 1, "shutdown66", 10) == 0) {
@@ -269,7 +269,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 
 			//username exist or not
 			if ("" != hashTable.get(username)) {
-				return "Username already exists, please choose a different name or login with existing account. Usage: ~login (username) (password)";
+				return "Username already exists, please choose a different name or login with existing account. Usage: " + cmdChar + "login (username) (password)";
 			}
 			//store user data in database
 			hashTable.insert(username, password);
@@ -285,7 +285,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 		}
 		else {
 			//invalid command format
-			return "Invalid format for ~register command. Usage: ~register (username) (password)";
+			return "Invalid format for register command. Usage: " + cmdChar + "register (username)(password)";
 		}
 	}
 	else if (message[0] == commandChar && strncmp(message + 1, "login", 5) == 0) {
@@ -300,7 +300,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 
 			//username exist or not
 			if ("" == hashTable.get(username)) {
-				return "Username does not exist, please register. Usage: ~register (username) (password)";
+				return "Username does not exist, please register. Usage: " + cmdChar + "register (username)(password)";
 			}
 
 			//username already logged in
@@ -329,8 +329,37 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 		}
 		else {
 			//invalid command format
-			return "Invalid format for ~register command. Usage: ~register (username) (password)";
+			return "Invalid format for login command. Usage: " + cmdChar + "login(username) (password)";
 		}
+	}
+	else if (message[0] == commandChar && strncmp(message + 1, "logout", 6) == 0) {
+		//extract name
+		std::string msg(message);
+		size_t split1 = msg.find(' ', 6);
+		std::string username = msg.substr(split1 + 1);
+
+		//username exist or not
+		if ("" == hashTable.get(username)) {
+			return "Username does not exist, cannot logout";
+		}
+
+		//username already logged in or not
+		for (const auto& user : usernames) {
+			if (user != username) {
+				return "User is not logged in.";
+			}
+		}
+
+		//logout rules
+		for (int i = 0; i < clientSockets.size(); i++) {
+			if (clientSockets[i] == clientSocket) {
+				auto it = usernames.begin();
+				std::advance(it, i);
+				usernames.erase(it);
+			}
+		}
+
+		return "Successfully logged out user: " + username;
 	}
 	else {
 		std::string input = message;
