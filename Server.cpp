@@ -277,12 +277,40 @@ std::string Server::processMessage(const char* message, int length) {
 			else {
 				return "Failed to register user: " + username + " - Server Error";
 			}
-
-			//output success
-			return "Successfully registered user: " + username;
 		}
 		else {
-			// Invalid command format
+			//invalid command format
+			return "Invalid format for ~register command. Usage: ~register (username) (password)";
+		}
+	}
+	else if (message[0] == commandChar && strncmp(message + 1, "login", 5) == 0) {
+		//split username and password
+		std::string msg(message);
+		size_t split1 = msg.find(' ', 6);
+		size_t split2 = msg.find(' ', split1 + 1);
+		if (split1 != std::string::npos && split2 != std::string::npos) {
+			//store username and password
+			std::string username = msg.substr(split1 + 1, split2 - split1 - 1);
+			std::string password = msg.substr(split2 + 1);
+
+			//username exist or not
+			if ("" == hashTable.get(username)) {
+				return "Username does not exist, please register. Usage: ~register (username) (password)";
+			}
+
+			//check database registered
+			std::string storedPassword = hashTable.get(username);
+			if (storedPassword == password) {
+				//login rules
+
+				return "Successfully logged in user: " + username;
+			}
+			else {
+				return "Failed to login user: " + username + " - Incorrect password.";
+			}
+		}
+		else {
+			//invalid command format
 			return "Invalid format for ~register command. Usage: ~register (username) (password)";
 		}
 	}
@@ -362,7 +390,6 @@ int Server::readMessage(SOCKET clientSocket, char* buffer, int32_t size)
 
 	return SUCCESS;
 }
-
 
 void Server::stop()
 {
