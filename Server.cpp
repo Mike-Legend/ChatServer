@@ -269,7 +269,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 
 			//username exist or not
 			if ("" != hashTable.get(username)) {
-				return "Username already exists, please choose a different name.";
+				return "Username already exists, please choose a different name or login with existing account. Usage: ~login (username) (password)";
 			}
 			//store user data in database
 			hashTable.insert(username, password);
