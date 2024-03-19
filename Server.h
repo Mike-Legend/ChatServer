@@ -12,7 +12,7 @@ public:
 	void input();
 	void info();
 	int init(uint16_t port, int capacity, char commandChar);
-	std::string processMessage(const char* message, int length);
+	std::string processMessage(SOCKET clientSocket, const char* message, int length);
 	int readMessage(SOCKET clientSocket, char* buffer, int32_t size);
 	int sendMessage(SOCKET clientSocket, char* data, int32_t length);
 	void stop();

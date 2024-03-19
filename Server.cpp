@@ -8,6 +8,7 @@
 #include <WS2tcpip.h>
 #include <string>
 #include "UserDatabase.h"
+#include <list>
 
 #define MAX_BUFFER_SIZE 256
 
@@ -22,6 +23,7 @@ bool sockets = false;
 char buffer[MAX_BUFFER_SIZE];
 UserDatabase hashTable;
 std::vector<SOCKET> clientSockets;
+std::list<std::string> usernames;
 Server server;
 WSADATA wsaData;
 fd_set readSet;
@@ -120,7 +122,7 @@ int main() {
 				}
 				else {
 					std::cout << "Received message from client " << i << ": " << buffer << std::endl;
-					std::string responseMessage = server.processMessage(buffer, bytesReceived);
+					std::string responseMessage = server.processMessage(clientSockets[i], buffer, bytesReceived);
 					//command message or not
 					if (buffer[0] == commandChar) {
 						//send command response back to the same client
@@ -238,10 +240,13 @@ int Server::init(uint16_t port, int capacity, char commandChar)
 		oneClient = true;
 	}
 
+	//set username count to socket count
+	usernames.resize(capacity);
+
 	return SUCCESS;
 }
 
-std::string Server::processMessage(const char* message, int length) {
+std::string Server::processMessage(SOCKET clientSocket, const char* message, int length) {
 	//check commands
 	if (message[0] == commandChar && strncmp(message + 1, "help", 4) == 0) {
 		std::string cmdChar(1, commandChar);
@@ -298,11 +303,24 @@ std::string Server::processMessage(const char* message, int length) {
 				return "Username does not exist, please register. Usage: ~register (username) (password)";
 			}
 
+			//username already logged in
+			for (const auto& user : usernames) {
+				if (user == username) {
+					return "User is already logged in.";
+				}
+			}
+
 			//check database registered
 			std::string storedPassword = hashTable.get(username);
 			if (storedPassword == password) {
 				//login rules
-
+				for (int i = 0; i < clientSockets.size(); i++) {
+					if (clientSockets[i] == clientSocket) {
+						auto it = usernames.begin();
+						std::advance(it, i);
+						*it = username;
+					}
+				}
 				return "Successfully logged in user: " + username;
 			}
 			else {
