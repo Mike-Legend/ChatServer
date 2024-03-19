@@ -9,6 +9,7 @@
 #include <string>
 #include "UserDatabase.h"
 #include <list>
+#include <unordered_map>
 
 #define MAX_BUFFER_SIZE 256
 
@@ -23,7 +24,8 @@ bool sockets = false;
 char buffer[MAX_BUFFER_SIZE];
 UserDatabase hashTable;
 std::vector<SOCKET> clientSockets;
-std::list<std::string> usernames;
+std::unordered_map<SOCKET, std::string> usernames;
+//std::list<std::string> usernames;
 Server server;
 WSADATA wsaData;
 fd_set readSet;
@@ -241,7 +243,7 @@ int Server::init(uint16_t port, int capacity, char commandChar)
 	}
 
 	//set username count to socket count
-	usernames.resize(capacity);
+	//usernames.resize(capacity);
 
 	return SUCCESS;
 }
@@ -303,12 +305,40 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 				return "Username does not exist, please register. Usage: " + cmdChar + "register (username)(password)";
 			}
 
+			////username already logged in
+			//for (const auto& user : usernames) {
+			//	/*if (user == username) {
+			//		return "User is already logged in.";
+			//	}*/
+			//	if (usernames[clientSocket] == username) {
+			//		return "User is already logged in.";
+			//	}
+			//}
+
 			//username already logged in
-			for (const auto& user : usernames) {
-				if (user == username) {
+			for (int i = 0; i < clientSockets.size(); i++) {
+				if (usernames[clientSockets[i]] == username) {
 					return "User is already logged in.";
 				}
 			}
+
+			////check database registered
+			//std::string storedPassword = hashTable.get(username);
+			//if (storedPassword == password) {
+			//	//login rules
+			//	for (int i = 0; i < clientSockets.size(); i++) {
+			//		if (clientSockets[i] == clientSocket) {
+			//			auto it = usernames.begin();
+			//			std::advance(it, i);
+			//			*it = username;
+			//			usernames[clientSocket] = username;
+			//		}
+			//	}
+			//	return "Successfully logged in user: " + username;
+			//}
+			//else {
+			//	return "Failed to login user: " + username + " - Incorrect password.";
+			//}
 
 			//check database registered
 			std::string storedPassword = hashTable.get(username);
@@ -316,9 +346,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 				//login rules
 				for (int i = 0; i < clientSockets.size(); i++) {
 					if (clientSockets[i] == clientSocket) {
-						auto it = usernames.begin();
-						std::advance(it, i);
-						*it = username;
+						usernames[clientSocket] = username;
 					}
 				}
 				return "Successfully logged in user: " + username;
@@ -343,23 +371,23 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			return "Username does not exist, cannot logout";
 		}
 
-		//username already logged in or not
-		for (const auto& user : usernames) {
-			if (user != username) {
-				return "User is not logged in.";
-			}
-		}
+		////username already logged in or not
+		//for (const auto& user : usernames) {
+		//	if (user != username) {
+		//		return "User is not logged in.";
+		//	}
+		//}
 
-		//logout rules
+		//username already logged in
 		for (int i = 0; i < clientSockets.size(); i++) {
-			if (clientSockets[i] == clientSocket) {
-				auto it = usernames.begin();
-				std::advance(it, i);
-				usernames.erase(it);
+			if (usernames[clientSockets[i]] == username) {
+				//logout rules
+				usernames[clientSocket] = i;
+				return "Successfully logged out user: " + username;
 			}
 		}
-
-		return "Successfully logged out user: " + username;
+		//if user not found in login
+		return "User is not logged in.";
 	}
 	else {
 		std::string input = message;
