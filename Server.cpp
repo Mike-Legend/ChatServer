@@ -30,6 +30,7 @@ Server server;
 WSADATA wsaData;
 fd_set readSet;
 bool oneClient = false;
+std::string logouter = "";
 
 int main() {
 	//WSA startup
@@ -134,6 +135,13 @@ int main() {
 						}
 						else {
 							std::cout << "Sent command response to client " << i << ": " << responseMessage << std::endl;
+							if (logouter == responseMessage) {
+								//client disconnect, close socket
+								std::cerr << "Client " << i << " disconnected\n";
+								closesocket(clientSockets[i]);
+								clientSockets.erase(clientSockets.begin() + i);
+								--i;
+							}
 						}
 					}
 					else {
@@ -338,21 +346,29 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 		size_t split1 = msg.find(' ', 6);
 		std::string username = msg.substr(split1 + 1);
 
-		//username exist or not
-		if ("" == hashTable.get(username)) {
-			return "Username does not exist, cannot logout";
-		}
+		if (split1 != std::string::npos) {
 
-		//username already logged in
-		for (int i = 0; i < clientSockets.size(); i++) {
-			if (usernames[clientSockets[i]] == username) {
-				//logout rules
-				usernames[clientSocket] = i;
-				return "Successfully logged out user: " + username;
+			//username exist or not
+			if ("" == hashTable.get(username)) {
+				return "Username does not exist, cannot logout";
 			}
+
+			//username already logged in
+			for (int i = 0; i < clientSockets.size(); i++) {
+				if (usernames[clientSockets[i]] == username) {
+					//logout rules
+					usernames[clientSocket] = i;
+					logouter = "Successfully logged out user: " + username;
+					return logouter;
+				}
+			}
+			//if user not found in login
+			return "User is not logged in.";
 		}
-		//if user not found in login
-		return "User is not logged in.";
+		else {
+			//invalid command format
+			return "Invalid format for logout command. Usage: " + cmdChar + "logout (username)";
+		}
 	}
 	else {
 		std::string input = message;
