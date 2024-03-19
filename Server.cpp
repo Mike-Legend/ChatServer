@@ -356,10 +356,16 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			//username already logged in
 			for (int i = 0; i < clientSockets.size(); i++) {
 				if (usernames[clientSockets[i]] == username) {
-					//logout rules
-					usernames[clientSocket] = i;
-					logouter = "Successfully logged out user: " + username;
-					return logouter;
+					std::string loggedInUsername = usernames[clientSocket];
+					if (loggedInUsername != username) {
+						return "You can only log yourself out, nice try..";
+					}
+					else {
+						//logout rules
+						usernames[clientSocket] = i;
+						logouter = "Successfully logged out user: " + username;
+						return logouter;
+					}
 				}
 			}
 			//if user not found in login
