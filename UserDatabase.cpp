@@ -14,6 +14,7 @@ int UserDatabase::hash(const std::string& key) {
 void UserDatabase::insert(const std::string& key, const std::string& value) {
     int index = hash(key);
     table[index].push_back({ key, value });
+    //store table to file at some point
 }
 
 std::string UserDatabase::get(const std::string& key) {
