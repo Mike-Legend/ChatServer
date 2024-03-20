@@ -313,7 +313,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 					return "Failed to send message to user: " + username;
 				}
 				else {
-					return "Message sent to user: " + username;
+					return "Direct Message to " + username + ": " + sendMessage;
 				}
 			}
 			else {
