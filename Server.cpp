@@ -270,8 +270,8 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 	else if (message[0] == commandChar && strncmp(message + 1, "clients", 7) == 0) {
 		std::string clientNames = "";
 		for (int i = 0; i < clientSockets.size(); i++) {
-			if (usernames[clientSockets[i]] == usernames[i]) {
-				clientNames.append(usernames[i]);
+			if (usernames.find(clientSockets[i]) != usernames.end()) {
+				clientNames.append(usernames[clientSockets[i]]);
 				clientNames.append("\n");
 			}
 		}
