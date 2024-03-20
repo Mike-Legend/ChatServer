@@ -277,7 +277,11 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 	std::string cmdChar(1, commandChar);
 	//non login based commands
 	if (message[0] == commandChar && strncmp(message + 1, "help", 4) == 0) {
-		return "Available commands:\n" + cmdChar + "help - Display available commands\n" + cmdChar + "register (username) (password) - Creates a registered account for the user\n";
+		return "Available commands:\n" + cmdChar + "help - Displays available commands\n" + cmdChar + 
+			"register (username) (password) - Creates a registered account for the user\n" + cmdChar + 
+			"login (username) (password) - Logs user into the chat\n" + cmdChar +
+			"send (username) (message) - Send a private message to the user\n" + cmdChar + 
+			"logout (username) - Logs user out of chat and disconnects from server\n";
 	}
 	else if (message[0] == commandChar && strncmp(message + 1, "register", 8) == 0) {
 		//split username and password
