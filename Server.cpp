@@ -162,7 +162,7 @@ int main() {
 							}
 						}
 						else {
-							//send command response back to the same client
+							//send command response back to the same client for no login
 							int bytesSent = server.sendMessage(clientSockets[i], const_cast<char*>(responseMessage.c_str()), responseMessage.length());
 							if (bytesSent != 0) {
 								std::cerr << "Failed to send command response to client " << i << "\n";
@@ -320,7 +320,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 
 			//username exist or not
 			if ("" == hashTable.get(username)) {
-				return "Username does not exist, please register. Usage: " + cmdChar + "register (username)(password)";
+				return "Username does not exist, please register. Usage: " + cmdChar + "register (username) (password)";
 			}
 
 			//user already logged in
@@ -348,7 +348,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 		}
 		else {
 			//invalid command format
-			return "Invalid format for login command. Usage: " + cmdChar + "login(username) (password)";
+			return "Invalid format for login command. Usage: " + cmdChar + "login (username) (password)";
 		}
 	}
 
