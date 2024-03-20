@@ -147,16 +147,29 @@ int main() {
 						}
 					}
 					else {
-						//regular message to all clients except sender
-						for (size_t j = 0; j < clientSockets.size(); ++j) {
-							if (i != j) {
-								int bytesSent = server.sendMessage(clientSockets[j], const_cast<char*>(responseMessage.c_str()), responseMessage.length());
-								if (bytesSent != 0) {
-									std::cerr << "Failed to send message to client " << j << "\n";
+						//dont allow unless logged in
+						if (usernames.find(clientSockets[i]) != usernames.end()) {
+							//regular message to all clients except sender
+							for (size_t j = 0; j < clientSockets.size(); ++j) {
+								if (i != j) {
+									int bytesSent = server.sendMessage(clientSockets[j], const_cast<char*>(responseMessage.c_str()), responseMessage.length());
+									if (bytesSent != 0) {
+										std::cerr << "Failed to send message to client " << j << "\n";
+									}
+									else {
+										std::cout << "Relayed messages to client " << j << std::endl;
+									}
 								}
-								else {
-									std::cout << "Relayed messages to client " << j << std::endl;
-								}
+							}
+						}
+						else {
+							//send command response back to the same client
+							int bytesSent = server.sendMessage(clientSockets[i], const_cast<char*>(responseMessage.c_str()), responseMessage.length());
+							if (bytesSent != 0) {
+								std::cerr << "Failed to send command response to client " << i << "\n";
+							}
+							else {
+								std::cout << "Sent command response to client " << i << ": " << responseMessage << std::endl;
 							}
 						}
 					}
@@ -261,13 +274,9 @@ int Server::init(uint16_t port, int capacity, char commandChar)
 std::string Server::processMessage(SOCKET clientSocket, const char* message, int length) {
 	//check commands
 	std::string cmdChar(1, commandChar);
+	//non login based commands
 	if (message[0] == commandChar && strncmp(message + 1, "help", 4) == 0) {
 		return "Available commands:\n" + cmdChar + "help - Display available commands\n" + cmdChar + "register (username) (password) - Creates a registered account for the user\n";
-	}
-	else if (message[0] == commandChar && strncmp(message + 1, "shutdown66", 10) == 0) {
-		//secret shutdown command
-		status = false;
-		return "Shutting down server! Order 66 executed.";
 	}
 	else if (message[0] == commandChar && strncmp(message + 1, "clients", 7) == 0) {
 		std::string clientNames = "";
@@ -281,49 +290,6 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			return "No users logged in";
 		}
 		return "List of Active Clients: \n" + clientNames;
-	}
-	else if (message[0] == commandChar && strncmp(message + 1, "send", 4) == 0) {
-		//split username and message
-		std::string msg(message);
-		size_t split1 = msg.find(' ', 5);
-		size_t split2 = msg.find(' ', split1 + 1);
-		std::string username = msg.substr(split1 + 1, split2 - split1 - 1);
-		std::string sendMessage = msg.substr(split2 + 1);
-
-		//invalid command or not
-		if (split1 != std::string::npos && split2 != std::string::npos) {
-			//match socket to sending socket
-			SOCKET recipientSocket = INVALID_SOCKET;
-			for (const auto& pair : usernames) {
-				if (pair.second == username) {
-					recipientSocket = pair.first;
-					break;
-				}
-			}
-			//send message to specific socket
-			if (recipientSocket != INVALID_SOCKET) {
-				char* cMsg = new char[sendMessage.length() + 1];
-				strcpy(cMsg, sendMessage.c_str());
-				if (recipientSocket == clientSocket) {
-					return "Messages cannot be sent to yourself";
-				}
-				int bytesSent = server.sendMessage(recipientSocket, cMsg, sendMessage.length() + 1);
-				delete[] cMsg;
-				if (bytesSent != 0) {
-					return "Failed to send message to user: " + username;
-				}
-				else {
-					return "Direct Message to " + username + ": " + sendMessage;
-				}
-			}
-			else {
-				return "User not found: " + username;
-			}
-		}
-		else {
-			//invalid command format
-			return "Invalid format for send command. Usage: " + cmdChar + "send (username) (message)";
-		}
 	}
 	else if (message[0] == commandChar && strncmp(message + 1, "register", 8) == 0) {
 		//split username and password
@@ -398,100 +364,142 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			return "Invalid format for login command. Usage: " + cmdChar + "login(username) (password)";
 		}
 	}
-	else if (message[0] == commandChar && strncmp(message + 1, "logout", 6) == 0) {
-		//extract name
-		std::string msg(message);
-		size_t split1 = msg.find(' ', 6);
-		std::string username = msg.substr(split1 + 1);
 
-		if (split1 != std::string::npos) {
+	//dont allow unless logged in
+	if (usernames.find(clientSocket) != usernames.end()) {
+		if (message[0] == commandChar && strncmp(message + 1, "shutdown66", 10) == 0) {
+			//secret shutdown command
+			status = false;
+			return "Shutting down server! Order 66 executed.";
+		}
+		else if (message[0] == commandChar && strncmp(message + 1, "send", 4) == 0) {
+			//split username and message
+			std::string msg(message);
+			size_t split1 = msg.find(' ', 5);
+			size_t split2 = msg.find(' ', split1 + 1);
+			std::string username = msg.substr(split1 + 1, split2 - split1 - 1);
+			std::string sendMessage = msg.substr(split2 + 1);
 
-			//username exist or not
-			if ("" == hashTable.get(username)) {
-				return "Username does not exist, cannot logout";
-			}
-
-			//username already logged in
-			for (int i = 0; i < clientSockets.size(); i++) {
-				if (usernames[clientSockets[i]] == username) {
-					std::string loggedInUsername = usernames[clientSocket];
-					if (loggedInUsername != username) {
-						return "You can only log yourself out, nice try..";
-					}
-					else {
-						//logout rules
-						usernames[clientSocket] = i;
-						logouter = "Successfully logged out user: " + username;
-						return logouter;
+			//invalid command or not
+			if (split1 != std::string::npos && split2 != std::string::npos) {
+				//match socket to sending socket
+				SOCKET recipientSocket = INVALID_SOCKET;
+				for (const auto& pair : usernames) {
+					if (pair.second == username) {
+						recipientSocket = pair.first;
+						break;
 					}
 				}
+				//send message to specific socket
+				if (recipientSocket != INVALID_SOCKET) {
+					char* cMsg = new char[sendMessage.length() + 1];
+					strcpy(cMsg, sendMessage.c_str());
+					if (recipientSocket == clientSocket) {
+						return "Messages cannot be sent to yourself";
+					}
+					int bytesSent = server.sendMessage(recipientSocket, cMsg, sendMessage.length() + 1);
+					delete[] cMsg;
+					if (bytesSent != 0) {
+						return "Failed to send message to user: " + username;
+					}
+					else {
+						return "Direct Message to " + username + ": " + sendMessage;
+					}
+				}
+				else {
+					return "User not found: " + username;
+				}
 			}
-			//if user not found in login
-			return "User is not logged in.";
+			else {
+				//invalid command format
+				return "Invalid format for send command. Usage: " + cmdChar + "send (username) (message)";
+			}
+		}
+		else if (message[0] == commandChar && strncmp(message + 1, "logout", 6) == 0) {
+			//extract name
+			std::string msg(message);
+			size_t split1 = msg.find(' ', 6);
+			std::string username = msg.substr(split1 + 1);
+
+			if (split1 != std::string::npos) {
+
+				//username exist or not
+				if ("" == hashTable.get(username)) {
+					return "Username does not exist, cannot logout";
+				}
+
+				//username already logged in
+				for (int i = 0; i < clientSockets.size(); i++) {
+					if (usernames[clientSockets[i]] == username) {
+						std::string loggedInUsername = usernames[clientSocket];
+						if (loggedInUsername != username) {
+							return "You can only log yourself out, nice try..";
+						}
+						else {
+							//logout rules
+							usernames[clientSocket] = i;
+							logouter = "Successfully logged out user: " + username;
+							return logouter;
+						}
+					}
+				}
+				//if user not found in login
+				return "User is not logged in.";
+			}
+			else {
+				//invalid command format
+				return "Invalid format for logout command. Usage: " + cmdChar + "logout (username)";
+			}
 		}
 		else {
-			//invalid command format
-			return "Invalid format for logout command. Usage: " + cmdChar + "logout (username)";
+			std::string input = message;
+			return input;
 		}
 	}
 	else {
-		std::string input = message;
-		return input;
+		return "User not logged in. Please use " + cmdChar + "register and " + cmdChar + "login to create an account to start chatting!";
 	}
 }
 
-int Server::sendMessage(SOCKET clientSocket, char* data, int32_t length)
-{
-	uint8_t size = static_cast<uint8_t>(length + 1);
-	int bytesSent = 0;
-	int totalBytesSent = 0;
-
-	//new buffer for sending and reset each time
-	char sendBuffer[MAX_BUFFER_SIZE];
-	memset(sendBuffer, 0, MAX_BUFFER_SIZE);
-	memcpy(sendBuffer, &size, sizeof(size));
-	memcpy(sendBuffer + sizeof(size), data, length + 1);
-
-	//loop to ensure full data is being sent
-	while (totalBytesSent < length + 1 + sizeof(size))
+	int Server::sendMessage(SOCKET clientSocket, char* data, int32_t length)
 	{
-		bytesSent = send(clientSocket, sendBuffer + totalBytesSent, length + 1 + sizeof(size) - totalBytesSent, 0);
-		if (bytesSent == SOCKET_ERROR || bytesSent == 0)
+		uint8_t size = static_cast<uint8_t>(length + 1);
+		int bytesSent = 0;
+		int totalBytesSent = 0;
+
+		//new buffer for sending and reset each time
+		char sendBuffer[MAX_BUFFER_SIZE];
+		memset(sendBuffer, 0, MAX_BUFFER_SIZE);
+		memcpy(sendBuffer, &size, sizeof(size));
+		memcpy(sendBuffer + sizeof(size), data, length + 1);
+
+		//loop to ensure full data is being sent
+		while (totalBytesSent < length + 1 + sizeof(size))
 		{
-			return DISCONNECT;
+			bytesSent = send(clientSocket, sendBuffer + totalBytesSent, length + 1 + sizeof(size) - totalBytesSent, 0);
+			if (bytesSent == SOCKET_ERROR || bytesSent == 0)
+			{
+				return DISCONNECT;
+			}
+			totalBytesSent += bytesSent;
 		}
-		totalBytesSent += bytesSent;
+
+		//ensure all bytes are sent
+		if (totalBytesSent != length + 1 + sizeof(size))
+		{
+			return PARAMETER_ERROR;
+		}
+
+		return SUCCESS;
 	}
 
-	//ensure all bytes are sent
-	if (totalBytesSent != length + 1 + sizeof(size))
+	int Server::readMessage(SOCKET clientSocket, char* buffer, int32_t size)
 	{
-		return PARAMETER_ERROR;
-	}
+		//clear buffer for new messages
+		memset(buffer, 0, size);
 
-	return SUCCESS;
-}
-
-int Server::readMessage(SOCKET clientSocket, char* buffer, int32_t size)
-{
-	//clear buffer for new messages
-	memset(buffer, 0, size);
-
-	uint8_t length;
-	int bytesReceived = recv(clientSocket, (char*)&length, sizeof(length), 0);
-	if (bytesReceived <= 0)
-	{
-		if (bytesReceived == 0)
-			return DISCONNECT;
-		else
-			return SHUTDOWN;
-	}
-
-	//loop to verify all data is being read
-	int totalBytesReceived = 0;
-	while (totalBytesReceived < length)
-	{
-		bytesReceived = recv(clientSocket, buffer + totalBytesReceived, length - totalBytesReceived, 0);
+		uint8_t length;
+		int bytesReceived = recv(clientSocket, (char*)&length, sizeof(length), 0);
 		if (bytesReceived <= 0)
 		{
 			if (bytesReceived == 0)
@@ -499,29 +507,42 @@ int Server::readMessage(SOCKET clientSocket, char* buffer, int32_t size)
 			else
 				return SHUTDOWN;
 		}
-		totalBytesReceived += bytesReceived;
+
+		//loop to verify all data is being read
+		int totalBytesReceived = 0;
+		while (totalBytesReceived < length)
+		{
+			bytesReceived = recv(clientSocket, buffer + totalBytesReceived, length - totalBytesReceived, 0);
+			if (bytesReceived <= 0)
+			{
+				if (bytesReceived == 0)
+					return DISCONNECT;
+				else
+					return SHUTDOWN;
+			}
+			totalBytesReceived += bytesReceived;
+		}
+
+		//ensure all bytes are received
+		if (totalBytesReceived != length)
+		{
+			return PARAMETER_ERROR;
+		}
+
+		return SUCCESS;
 	}
 
-	//ensure all bytes are received
-	if (totalBytesReceived != length)
+	void Server::stop()
 	{
-		return PARAMETER_ERROR;
-	}
+		if (clientSocket != INVALID_SOCKET) {
+			shutdown(clientSocket, SD_BOTH);
+			closesocket(clientSocket);
+			clientSocket = INVALID_SOCKET;
+		}
+		if (serverSocket != INVALID_SOCKET) {
+			closesocket(serverSocket);
+			serverSocket = INVALID_SOCKET;
+		}
 
-	return SUCCESS;
-}
-
-void Server::stop()
-{
-	if (clientSocket != INVALID_SOCKET) {
-		shutdown(clientSocket, SD_BOTH);
-		closesocket(clientSocket);
-		clientSocket = INVALID_SOCKET;
+		WSACleanup();
 	}
-	if (serverSocket != INVALID_SOCKET) {
-		closesocket(serverSocket);
-		serverSocket = INVALID_SOCKET;
-	}
-
-	WSACleanup();
-}
