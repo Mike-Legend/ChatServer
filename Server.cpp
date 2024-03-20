@@ -1,5 +1,6 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+#define BUFFER_OVERFLOW -1
 #include "Server.h"
 #include <iostream>
 #include <cstdint>
@@ -132,7 +133,12 @@ int main() {
 						//send command response back to the same client
 						int bytesSent = server.sendMessage(clientSockets[i], const_cast<char*>(responseMessage.c_str()), responseMessage.length());
 						if (bytesSent != 0) {
-							std::cerr << "Failed to send command response to client " << i << "\n";
+							std::cerr << "Failed to send message to client " << i << "\n";
+							if (bytesSent == -1) {
+								responseMessage = "Message is too long!";
+								int bytesSent = server.sendMessage(clientSockets[i], const_cast<char*>(responseMessage.c_str()), responseMessage.length());
+								std::cerr << "Message length was too long" << "\n";
+							}
 						}
 						else {
 							std::cout << "Sent command response to client " << i << ": " << responseMessage << std::endl;
@@ -155,6 +161,11 @@ int main() {
 										int bytesSent = server.sendMessage(clientSockets[j], const_cast<char*>(responseMessage.c_str()), responseMessage.length());
 										if (bytesSent != 0) {
 											std::cerr << "Failed to send message to client " << j << "\n";
+											if (bytesSent == -1) {
+												responseMessage = "Message is too long!";
+												int bytesSent = server.sendMessage(clientSockets[j], const_cast<char*>(responseMessage.c_str()), responseMessage.length());
+												std::cerr << "Message length was too long" << "\n";
+											}
 										}
 										else {
 											std::cout << "Relayed messages to client " << j << std::endl;
@@ -277,11 +288,12 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 	std::string cmdChar(1, commandChar);
 	//non login based commands
 	if (message[0] == commandChar && strncmp(message + 1, "help", 4) == 0) {
-		return "Available commands:\n" + cmdChar + "help - Displays available commands\n" + cmdChar + 
+		std::string helpLine = "Available commands:\n" + cmdChar + "help - Displays available commands\n" + cmdChar + 
 			"register (username) (password) - Creates a registered account for the user\n" + cmdChar + 
 			"login (username) (password) - Logs user into the chat\n" + cmdChar +
 			"send (username) (message) - Send a private message to the user\n" + cmdChar + 
 			"logout (username) - Logs user out of chat and disconnects from server\n";
+		return helpLine;
 	}
 	else if (message[0] == commandChar && strncmp(message + 1, "register", 8) == 0) {
 		//split username and password
@@ -481,19 +493,22 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 int Server::sendMessage(SOCKET clientSocket, char* data, int32_t length)
 {
 	uint8_t size = static_cast<uint8_t>(length + 1);
-	int bytesSent = 0;
 	int totalBytesSent = 0;
 
-	//new buffer for sending and reset each time
+	//check buffer size to message
 	char sendBuffer[MAX_BUFFER_SIZE];
-	memset(sendBuffer, 0, MAX_BUFFER_SIZE);
+	if (length + 1 + sizeof(size) > MAX_BUFFER_SIZE) {
+		return BUFFER_OVERFLOW;
+	}
+
+	//buffer adjustments
 	memcpy(sendBuffer, &size, sizeof(size));
 	memcpy(sendBuffer + sizeof(size), data, length + 1);
 
 	//loop to ensure full data is being sent
 	while (totalBytesSent < length + 1 + sizeof(size))
 	{
-		bytesSent = send(clientSocket, sendBuffer + totalBytesSent, length + 1 + sizeof(size) - totalBytesSent, 0);
+		int bytesSent = send(clientSocket, sendBuffer + totalBytesSent, length + 1 + sizeof(size) - totalBytesSent, 0);
 		if (bytesSent == SOCKET_ERROR || bytesSent == 0)
 		{
 			return DISCONNECT;
