@@ -27,7 +27,6 @@ char buffer[MAX_BUFFER_SIZE];
 UserDatabase hashTable;
 std::vector<SOCKET> clientSockets;
 std::unordered_map<SOCKET, std::string> usernames;
-//std::list<std::string> usernames;
 Server server;
 WSADATA wsaData;
 fd_set readSet;
@@ -278,19 +277,6 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 	if (message[0] == commandChar && strncmp(message + 1, "help", 4) == 0) {
 		return "Available commands:\n" + cmdChar + "help - Display available commands\n" + cmdChar + "register (username) (password) - Creates a registered account for the user\n";
 	}
-	else if (message[0] == commandChar && strncmp(message + 1, "clients", 7) == 0) {
-		std::string clientNames = "";
-		for (int i = 0; i < clientSockets.size(); i++) {
-			if (usernames.find(clientSockets[i]) != usernames.end()) {
-				clientNames.append(usernames[clientSockets[i]]);
-				clientNames.append("\n");
-			}
-		}
-		if (clientNames == "") {
-			return "No users logged in";
-		}
-		return "List of Active Clients: \n" + clientNames;
-	}
 	else if (message[0] == commandChar && strncmp(message + 1, "register", 8) == 0) {
 		//split username and password
 		std::string msg(message);
@@ -337,10 +323,11 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 				return "Username does not exist, please register. Usage: " + cmdChar + "register (username)(password)";
 			}
 
-			//username already logged in
-			for (int i = 0; i < clientSockets.size(); i++) {
-				if (usernames[clientSockets[i]] == username) {
-					return "User is already logged in.";
+			//user already logged in
+			if (usernames.find(clientSocket) != usernames.end()) {
+				std::string loggedInUsername = usernames[clientSocket];
+				if (loggedInUsername == username) {
+					return "User is already logged in";
 				}
 			}
 
@@ -356,7 +343,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 				return "Successfully logged in user: " + username;
 			}
 			else {
-				return "Failed to login user: " + username + " - Incorrect password.";
+				return "Failed to login user: " + username + " - Incorrect password";
 			}
 		}
 		else {
@@ -371,6 +358,19 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			//secret shutdown command
 			status = false;
 			return "Shutting down server! Order 66 executed.";
+		}
+		else if (message[0] == commandChar && strncmp(message + 1, "clients", 7) == 0) {
+			std::string clientNames = "";
+			for (int i = 0; i < clientSockets.size(); i++) {
+				if (usernames.find(clientSockets[i]) != usernames.end()) {
+					clientNames.append(usernames[clientSockets[i]]);
+					clientNames.append("\n");
+				}
+			}
+			if (clientNames == "") {
+				return "No users logged in";
+			}
+			return "List of Active Clients: \n" + clientNames;
 		}
 		else if (message[0] == commandChar && strncmp(message + 1, "send", 4) == 0) {
 			//split username and message
