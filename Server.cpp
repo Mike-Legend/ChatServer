@@ -267,6 +267,19 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 		status = false;
 		return "Shutting down server! Order 66 executed.";
 	}
+	else if (message[0] == commandChar && strncmp(message + 1, "clients", 7) == 0) {
+		std::string clientNames = "";
+		for (int i = 0; i < clientSockets.size(); i++) {
+			if (usernames[clientSockets[i]] == usernames[i]) {
+				clientNames.append(usernames[i]);
+				clientNames.append("\n");
+			}
+		}
+		if (clientNames == "") {
+			return "No users logged in";
+		}
+		return "List of Active Clients: \n" + clientNames;
+	}
 	else if (message[0] == commandChar && strncmp(message + 1, "register", 8) == 0) {
 		//split username and password
 		std::string msg(message);
