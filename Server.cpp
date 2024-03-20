@@ -299,11 +299,13 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 					break;
 				}
 			}
-			char* cMsg = new char[sendMessage.length() + 1];
-			strcpy(cMsg, msg.c_str());
-
 			// Send the message only to the specific client
 			if (recipientSocket != INVALID_SOCKET) {
+				char* cMsg = new char[sendMessage.length() + 1];
+				strcpy(cMsg, sendMessage.c_str());
+				if (recipientSocket == clientSocket) {
+					return "Cannot send messages to self";
+				}
 				int bytesSent = server.sendMessage(recipientSocket, cMsg, sendMessage.length() + 1);
 				delete[] cMsg;
 				if (bytesSent != 0) {
