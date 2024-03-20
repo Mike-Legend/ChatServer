@@ -148,15 +148,17 @@ int main() {
 					else {
 						//dont allow unless logged in
 						if (usernames.find(clientSockets[i]) != usernames.end()) {
-							//regular message to all clients except sender
+							//regular message to all clients except sender and unregistered users
 							for (size_t j = 0; j < clientSockets.size(); ++j) {
 								if (i != j) {
-									int bytesSent = server.sendMessage(clientSockets[j], const_cast<char*>(responseMessage.c_str()), responseMessage.length());
-									if (bytesSent != 0) {
-										std::cerr << "Failed to send message to client " << j << "\n";
-									}
-									else {
-										std::cout << "Relayed messages to client " << j << std::endl;
+									if (usernames.find(clientSockets[j]) != usernames.end()) {
+										int bytesSent = server.sendMessage(clientSockets[j], const_cast<char*>(responseMessage.c_str()), responseMessage.length());
+										if (bytesSent != 0) {
+											std::cerr << "Failed to send message to client " << j << "\n";
+										}
+										else {
+											std::cout << "Relayed messages to client " << j << std::endl;
+										}
 									}
 								}
 							}
