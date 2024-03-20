@@ -333,6 +333,17 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 				}
 			}
 
+			//TODO:
+			//cannot login different account if already logged in
+			for (int i = 0; i < clientSockets.size(); i++) {
+				if (usernames[clientSockets[i]] == username) {
+					std::string loggedInUsername = usernames[clientSocket];
+					if (loggedInUsername == username) {
+						return "You can only log yourself out, nice try..";
+					}
+				}
+			}
+
 			//check database registered
 			std::string storedPassword = hashTable.get(username);
 			if (storedPassword == password) {
