@@ -1,4 +1,5 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
 #include "Server.h"
 #include <iostream>
 #include <cstdint>
@@ -10,6 +11,7 @@
 #include "UserDatabase.h"
 #include <list>
 #include <unordered_map>
+#include <cstring>
 
 #define MAX_BUFFER_SIZE 256
 
@@ -280,6 +282,46 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 		}
 		return "List of Active Clients: \n" + clientNames;
 	}
+	else if (message[0] == commandChar && strncmp(message + 1, "send", 4) == 0) {
+		// Extract the username from the message
+		std::string msg(message);
+		size_t split1 = msg.find(' ', 5);
+		size_t split2 = msg.find(' ', split1 + 1);
+		std::string username = msg.substr(split1 + 1, split2 - split1 - 1);
+		std::string sendMessage = msg.substr(split2 + 1);
+
+		if (split1 != std::string::npos && split2 != std::string::npos) {
+			// Find the socket associated with the specified username
+			SOCKET recipientSocket = INVALID_SOCKET;
+			for (const auto& pair : usernames) {
+				if (pair.second == username) {
+					recipientSocket = pair.first;
+					break;
+				}
+			}
+			char* cMsg = new char[sendMessage.length() + 1];
+			strcpy(cMsg, msg.c_str());
+
+			// Send the message only to the specific client
+			if (recipientSocket != INVALID_SOCKET) {
+				int bytesSent = server.sendMessage(recipientSocket, cMsg, sendMessage.length() + 1);
+				delete[] cMsg;
+				if (bytesSent != 0) {
+					return "Failed to send message to user: " + username;
+				}
+				else {
+					return "Message sent to user: " + username;
+				}
+			}
+			else {
+				return "User not found: " + username;
+			}
+		}
+		else {
+			//invalid command format
+			return "Invalid format for send command. Usage: " + cmdChar + "send (username) (message)";
+		}
+	}
 	else if (message[0] == commandChar && strncmp(message + 1, "register", 8) == 0) {
 		//split username and password
 		std::string msg(message);
@@ -308,7 +350,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 		}
 		else {
 			//invalid command format
-			return "Invalid format for register command. Usage: " + cmdChar + "register (username)(password)";
+			return "Invalid format for register command. Usage: " + cmdChar + "register (username) (password)";
 		}
 	}
 	else if (message[0] == commandChar && strncmp(message + 1, "login", 5) == 0) {
