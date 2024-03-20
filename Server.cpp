@@ -461,45 +461,58 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 	}
 }
 
-	int Server::sendMessage(SOCKET clientSocket, char* data, int32_t length)
+int Server::sendMessage(SOCKET clientSocket, char* data, int32_t length)
+{
+	uint8_t size = static_cast<uint8_t>(length + 1);
+	int bytesSent = 0;
+	int totalBytesSent = 0;
+
+	//new buffer for sending and reset each time
+	char sendBuffer[MAX_BUFFER_SIZE];
+	memset(sendBuffer, 0, MAX_BUFFER_SIZE);
+	memcpy(sendBuffer, &size, sizeof(size));
+	memcpy(sendBuffer + sizeof(size), data, length + 1);
+
+	//loop to ensure full data is being sent
+	while (totalBytesSent < length + 1 + sizeof(size))
 	{
-		uint8_t size = static_cast<uint8_t>(length + 1);
-		int bytesSent = 0;
-		int totalBytesSent = 0;
-
-		//new buffer for sending and reset each time
-		char sendBuffer[MAX_BUFFER_SIZE];
-		memset(sendBuffer, 0, MAX_BUFFER_SIZE);
-		memcpy(sendBuffer, &size, sizeof(size));
-		memcpy(sendBuffer + sizeof(size), data, length + 1);
-
-		//loop to ensure full data is being sent
-		while (totalBytesSent < length + 1 + sizeof(size))
+		bytesSent = send(clientSocket, sendBuffer + totalBytesSent, length + 1 + sizeof(size) - totalBytesSent, 0);
+		if (bytesSent == SOCKET_ERROR || bytesSent == 0)
 		{
-			bytesSent = send(clientSocket, sendBuffer + totalBytesSent, length + 1 + sizeof(size) - totalBytesSent, 0);
-			if (bytesSent == SOCKET_ERROR || bytesSent == 0)
-			{
-				return DISCONNECT;
-			}
-			totalBytesSent += bytesSent;
+			return DISCONNECT;
 		}
-
-		//ensure all bytes are sent
-		if (totalBytesSent != length + 1 + sizeof(size))
-		{
-			return PARAMETER_ERROR;
-		}
-
-		return SUCCESS;
+		totalBytesSent += bytesSent;
 	}
 
-	int Server::readMessage(SOCKET clientSocket, char* buffer, int32_t size)
+	//ensure all bytes are sent
+	if (totalBytesSent != length + 1 + sizeof(size))
 	{
-		//clear buffer for new messages
-		memset(buffer, 0, size);
+		return PARAMETER_ERROR;
+	}
 
-		uint8_t length;
-		int bytesReceived = recv(clientSocket, (char*)&length, sizeof(length), 0);
+	return SUCCESS;
+}
+
+int Server::readMessage(SOCKET clientSocket, char* buffer, int32_t size)
+{
+	//clear buffer for new messages
+	memset(buffer, 0, size);
+
+	uint8_t length;
+	int bytesReceived = recv(clientSocket, (char*)&length, sizeof(length), 0);
+	if (bytesReceived <= 0)
+	{
+		if (bytesReceived == 0)
+			return DISCONNECT;
+		else
+			return SHUTDOWN;
+	}
+
+	//loop to verify all data is being read
+	int totalBytesReceived = 0;
+	while (totalBytesReceived < length)
+	{
+		bytesReceived = recv(clientSocket, buffer + totalBytesReceived, length - totalBytesReceived, 0);
 		if (bytesReceived <= 0)
 		{
 			if (bytesReceived == 0)
@@ -507,42 +520,29 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			else
 				return SHUTDOWN;
 		}
-
-		//loop to verify all data is being read
-		int totalBytesReceived = 0;
-		while (totalBytesReceived < length)
-		{
-			bytesReceived = recv(clientSocket, buffer + totalBytesReceived, length - totalBytesReceived, 0);
-			if (bytesReceived <= 0)
-			{
-				if (bytesReceived == 0)
-					return DISCONNECT;
-				else
-					return SHUTDOWN;
-			}
-			totalBytesReceived += bytesReceived;
-		}
-
-		//ensure all bytes are received
-		if (totalBytesReceived != length)
-		{
-			return PARAMETER_ERROR;
-		}
-
-		return SUCCESS;
+		totalBytesReceived += bytesReceived;
 	}
 
-	void Server::stop()
+	//ensure all bytes are received
+	if (totalBytesReceived != length)
 	{
-		if (clientSocket != INVALID_SOCKET) {
-			shutdown(clientSocket, SD_BOTH);
-			closesocket(clientSocket);
-			clientSocket = INVALID_SOCKET;
-		}
-		if (serverSocket != INVALID_SOCKET) {
-			closesocket(serverSocket);
-			serverSocket = INVALID_SOCKET;
-		}
-
-		WSACleanup();
+		return PARAMETER_ERROR;
 	}
+
+	return SUCCESS;
+}
+
+void Server::stop()
+{
+	if (clientSocket != INVALID_SOCKET) {
+		shutdown(clientSocket, SD_BOTH);
+		closesocket(clientSocket);
+		clientSocket = INVALID_SOCKET;
+	}
+	if (serverSocket != INVALID_SOCKET) {
+		closesocket(serverSocket);
+		serverSocket = INVALID_SOCKET;
+	}
+
+	WSACleanup();
+}
