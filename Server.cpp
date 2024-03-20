@@ -283,15 +283,16 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 		return "List of Active Clients: \n" + clientNames;
 	}
 	else if (message[0] == commandChar && strncmp(message + 1, "send", 4) == 0) {
-		// Extract the username from the message
+		//split username and message
 		std::string msg(message);
 		size_t split1 = msg.find(' ', 5);
 		size_t split2 = msg.find(' ', split1 + 1);
 		std::string username = msg.substr(split1 + 1, split2 - split1 - 1);
 		std::string sendMessage = msg.substr(split2 + 1);
 
+		//invalid command or not
 		if (split1 != std::string::npos && split2 != std::string::npos) {
-			// Find the socket associated with the specified username
+			//match socket to sending socket
 			SOCKET recipientSocket = INVALID_SOCKET;
 			for (const auto& pair : usernames) {
 				if (pair.second == username) {
@@ -299,12 +300,12 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 					break;
 				}
 			}
-			// Send the message only to the specific client
+			//send message to specific socket
 			if (recipientSocket != INVALID_SOCKET) {
 				char* cMsg = new char[sendMessage.length() + 1];
 				strcpy(cMsg, sendMessage.c_str());
 				if (recipientSocket == clientSocket) {
-					return "Cannot send messages to self";
+					return "Messages cannot be sent to yourself";
 				}
 				int bytesSent = server.sendMessage(recipientSocket, cMsg, sendMessage.length() + 1);
 				delete[] cMsg;
