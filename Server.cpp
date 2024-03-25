@@ -300,7 +300,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			//help page 2
 			helpLine = "Help Page 2/2:\n";
 			helpLine += cmdChar + "send (username) (message) - Send a private message to the user\n";
-			helpLine += cmdChar + "clients - Sends a list of currently logged in users\n";
+			helpLine += cmdChar + "getlist - Sends a list of currently logged in users\n";
 		}
 		else if (strlen(message) == 5) {
 			//help page 1 default with no page
@@ -408,6 +408,19 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			return "Invalid format for login command. Usage: " + cmdChar + "login (username) (password)";
 		}
 	}
+	else if (message[0] == commandChar && strncmp(message + 1, "getlist", 7) == 0) {
+		std::string clientNames = "";
+		for (int i = 0; i < clientSockets.size(); i++) {
+			if (usernames.find(clientSockets[i]) != usernames.end()) {
+				clientNames.append(usernames[clientSockets[i]]);
+				clientNames.append("\n");
+			}
+		}
+		if (clientNames == "") {
+			return "No users logged in";
+		}
+		return "List of Active Clients: \n" + clientNames;
+		}
 
 	//dont allow unless logged in
 	if (usernames.find(clientSocket) != usernames.end()) {
@@ -415,19 +428,6 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			//secret shutdown command
 			status = false;
 			return "Shutting down server! Order 66 executed.";
-		}
-		else if (message[0] == commandChar && strncmp(message + 1, "clients", 7) == 0) {
-			std::string clientNames = "";
-			for (int i = 0; i < clientSockets.size(); i++) {
-				if (usernames.find(clientSockets[i]) != usernames.end()) {
-					clientNames.append(usernames[clientSockets[i]]);
-					clientNames.append("\n");
-				}
-			}
-			if (clientNames == "") {
-				return "No users logged in";
-			}
-			return "List of Active Clients: \n" + clientNames;
 		}
 		else if (message[0] == commandChar && strncmp(message + 1, "send", 4) == 0) {
 			//split username and message
