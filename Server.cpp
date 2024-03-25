@@ -61,7 +61,7 @@ int main() {
 	timeout.tv_usec = 0;
 
 	//record start in logs
-	logDB.logCommand("--Server start--");
+	logDB.logCommand("\n--Server start--");
 
 	//server status
 	status = true;
