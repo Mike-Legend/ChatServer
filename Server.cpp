@@ -36,6 +36,7 @@ WSADATA wsaData;
 fd_set readSet;
 bool oneClient = false;
 std::string logouter = "";
+LogDatabase logDB("LogFiles/commands.log", "LogFiles/messages.log");
 
 int main() {
 	//WSA startup
@@ -57,9 +58,6 @@ int main() {
 	struct timeval timeout;
 	timeout.tv_sec = 1;
 	timeout.tv_usec = 0;
-
-	//initialize LogFiles
-	LogDatabase logDB("LogFiles/commands.log", "LogFiles/messages.log");
 
 	//server status
 	status = true;
@@ -516,6 +514,14 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 				//invalid command format
 				return "Invalid format for logout command. Usage: " + cmdChar + "logout (username)";
 			}
+		}
+		else if (message[0] == commandChar && strncmp(message + 1, "getlog", 6) == 0) {
+			std::string log = "";
+			log = logDB.getMessageLog();
+			if (log.empty()) {
+				return "No records of user messages";
+			}
+			return "Message Log:\n" + log;
 		}
 		else {
 			std::string input = message;
