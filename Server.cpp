@@ -319,9 +319,9 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 		else if (strncmp(message + 1, "help 2", 6) == 0) {
 			//help page 2
 			helpLine = "Help Page 2/2:\n";
+			helpLine += cmdChar + "getlist - Retrieves a list of currently logged in users\n";
+			helpLine += cmdChar + "getlog - Retrieves a log of previously sent public messages\n";
 			helpLine += cmdChar + "send (username) (message) - Send a private message to the user\n";
-			helpLine += cmdChar + "getlist - Sends a list of currently logged in users\n";
-			helpLine += cmdChar + "getlog - Sends a log of previously sent public messages\n";
 		}
 		else if (strlen(message) == 5) {
 			//help page 1 default with no page
