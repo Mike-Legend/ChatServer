@@ -85,8 +85,8 @@ int main() {
 			if (newSocket == INVALID_SOCKET) {
 				std::cerr << "Failed to accept new connection\n";
 			}
-			else if (clientSockets.size() == capacity) {
-				//rejection message if full
+			else if (clientSockets.size() == capacity + 10) {
+				//rejection message if full, set +10 buffer for users to attempt register for if/when chat capacity opens up.
 				std::string rejectionMessage = "Server capacity is full. You cannot join at the moment.";
 				int bytesSent = server.sendMessage(newSocket, const_cast<char*>(rejectionMessage.c_str()), rejectionMessage.length());
 				if (bytesSent != 0) {
@@ -345,169 +345,169 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			//invalid command format
 			return "Invalid format for register command. Usage: " + cmdChar + "register (username) (password)";
 		}
-		}
+	}
 	else if (message[0] == commandChar && strncmp(message + 1, "login", 5) == 0) {
-			//split username and password
-			std::string msg(message);
-			size_t split1 = msg.find(' ', 6);
-			size_t split2 = msg.find(' ', split1 + 1);
-			if (split1 != std::string::npos && split2 != std::string::npos) {
-				//store username and password
-				std::string username = msg.substr(split1 + 1, split2 - split1 - 1);
-				std::string password = msg.substr(split2 + 1);
+		//split username and password
+		std::string msg(message);
+		size_t split1 = msg.find(' ', 6);
+		size_t split2 = msg.find(' ', split1 + 1);
+		if (split1 != std::string::npos && split2 != std::string::npos) {
+			//store username and password
+			std::string username = msg.substr(split1 + 1, split2 - split1 - 1);
+			std::string password = msg.substr(split2 + 1);
 
-				//username exist or not
-				if ("" == hashTable.get(username)) {
-					return "Username does not exist, please register. Usage: " + cmdChar + "register (username) (password)";
+			//username exist or not
+			if ("" == hashTable.get(username)) {
+				return "Username does not exist, please register. Usage: " + cmdChar + "register (username) (password)";
+			}
+
+			//user already logged in
+			if (usernames.find(clientSocket) != usernames.end()) {
+				std::string loggedInUsername = usernames[clientSocket];
+				if (loggedInUsername == username) {
+					return "User is already logged in";
 				}
+			}
 
-				//user already logged in
-				if (usernames.find(clientSocket) != usernames.end()) {
+			//TODO:
+			//cannot login different account if already logged in
+			for (int i = 0; i < clientSockets.size(); i++) {
+				if (usernames[clientSockets[i]] == username) {
 					std::string loggedInUsername = usernames[clientSocket];
 					if (loggedInUsername == username) {
-						return "User is already logged in";
+						return "You can only log yourself out, nice try..";
 					}
 				}
+			}
 
-				//TODO:
-				//cannot login different account if already logged in
+			//check database registered
+			std::string storedPassword = hashTable.get(username);
+			if (storedPassword == password) {
+				//login rules
 				for (int i = 0; i < clientSockets.size(); i++) {
-					if (usernames[clientSockets[i]] == username) {
-						std::string loggedInUsername = usernames[clientSocket];
-						if (loggedInUsername == username) {
-							return "You can only log yourself out, nice try..";
-						}
+					if (clientSockets[i] == clientSocket) {
+						usernames[clientSocket] = username;
 					}
 				}
+				return "Successfully logged in user: " + username;
+			}
+			else {
+				return "Failed to login user: " + username + " - Incorrect password";
+			}
+		}
+		else {
+			//invalid command format
+			return "Invalid format for login command. Usage: " + cmdChar + "login (username) (password)";
+		}
+	}
 
-				//check database registered
-				std::string storedPassword = hashTable.get(username);
-				if (storedPassword == password) {
-					//login rules
-					for (int i = 0; i < clientSockets.size(); i++) {
-						if (clientSockets[i] == clientSocket) {
-							usernames[clientSocket] = username;
-						}
+	//dont allow unless logged in
+	if (usernames.find(clientSocket) != usernames.end()) {
+		if (message[0] == commandChar && strncmp(message + 1, "shutdown66", 10) == 0) {
+			//secret shutdown command
+			status = false;
+			return "Shutting down server! Order 66 executed.";
+		}
+		else if (message[0] == commandChar && strncmp(message + 1, "clients", 7) == 0) {
+			std::string clientNames = "";
+			for (int i = 0; i < clientSockets.size(); i++) {
+				if (usernames.find(clientSockets[i]) != usernames.end()) {
+					clientNames.append(usernames[clientSockets[i]]);
+					clientNames.append("\n");
+				}
+			}
+			if (clientNames == "") {
+				return "No users logged in";
+			}
+			return "List of Active Clients: \n" + clientNames;
+		}
+		else if (message[0] == commandChar && strncmp(message + 1, "send", 4) == 0) {
+			//split username and message
+			std::string msg(message);
+			size_t split1 = msg.find(' ', 5);
+			size_t split2 = msg.find(' ', split1 + 1);
+			std::string username = msg.substr(split1 + 1, split2 - split1 - 1);
+			std::string sendMessage = msg.substr(split2 + 1);
+
+			//invalid command or not
+			if (split1 != std::string::npos && split2 != std::string::npos) {
+				//match socket to sending socket
+				SOCKET recipientSocket = INVALID_SOCKET;
+				for (const auto& pair : usernames) {
+					if (pair.second == username) {
+						recipientSocket = pair.first;
+						break;
 					}
-					return "Successfully logged in user: " + username;
+				}
+				//send message to specific socket
+				if (recipientSocket != INVALID_SOCKET) {
+					char* cMsg = new char[sendMessage.length() + 1];
+					strcpy(cMsg, sendMessage.c_str());
+					if (recipientSocket == clientSocket) {
+						return "Messages cannot be sent to yourself";
+					}
+					int bytesSent = server.sendMessage(recipientSocket, cMsg, sendMessage.length() + 1);
+					delete[] cMsg;
+					if (bytesSent != 0) {
+						return "Failed to send message to user: " + username;
+					}
+					else {
+						return "Direct Message to " + username + ": " + sendMessage;
+					}
 				}
 				else {
-					return "Failed to login user: " + username + " - Incorrect password";
+					return "User not found: " + username;
 				}
 			}
 			else {
 				//invalid command format
-				return "Invalid format for login command. Usage: " + cmdChar + "login (username) (password)";
+				return "Invalid format for send command. Usage: " + cmdChar + "send (username) (message)";
 			}
-			}
+		}
+		else if (message[0] == commandChar && strncmp(message + 1, "logout", 6) == 0) {
+			//extract name
+			std::string msg(message);
+			size_t split1 = msg.find(' ', 6);
+			std::string username = msg.substr(split1 + 1);
 
-			//dont allow unless logged in
-			if (usernames.find(clientSocket) != usernames.end()) {
-				if (message[0] == commandChar && strncmp(message + 1, "shutdown66", 10) == 0) {
-					//secret shutdown command
-					status = false;
-					return "Shutting down server! Order 66 executed.";
-				}
-				else if (message[0] == commandChar && strncmp(message + 1, "clients", 7) == 0) {
-					std::string clientNames = "";
-					for (int i = 0; i < clientSockets.size(); i++) {
-						if (usernames.find(clientSockets[i]) != usernames.end()) {
-							clientNames.append(usernames[clientSockets[i]]);
-							clientNames.append("\n");
-						}
-					}
-					if (clientNames == "") {
-						return "No users logged in";
-					}
-					return "List of Active Clients: \n" + clientNames;
-				}
-				else if (message[0] == commandChar && strncmp(message + 1, "send", 4) == 0) {
-					//split username and message
-					std::string msg(message);
-					size_t split1 = msg.find(' ', 5);
-					size_t split2 = msg.find(' ', split1 + 1);
-					std::string username = msg.substr(split1 + 1, split2 - split1 - 1);
-					std::string sendMessage = msg.substr(split2 + 1);
+			if (split1 != std::string::npos) {
 
-					//invalid command or not
-					if (split1 != std::string::npos && split2 != std::string::npos) {
-						//match socket to sending socket
-						SOCKET recipientSocket = INVALID_SOCKET;
-						for (const auto& pair : usernames) {
-							if (pair.second == username) {
-								recipientSocket = pair.first;
-								break;
-							}
-						}
-						//send message to specific socket
-						if (recipientSocket != INVALID_SOCKET) {
-							char* cMsg = new char[sendMessage.length() + 1];
-							strcpy(cMsg, sendMessage.c_str());
-							if (recipientSocket == clientSocket) {
-								return "Messages cannot be sent to yourself";
-							}
-							int bytesSent = server.sendMessage(recipientSocket, cMsg, sendMessage.length() + 1);
-							delete[] cMsg;
-							if (bytesSent != 0) {
-								return "Failed to send message to user: " + username;
-							}
-							else {
-								return "Direct Message to " + username + ": " + sendMessage;
-							}
+				//username exist or not
+				if ("" == hashTable.get(username)) {
+					return "Username does not exist, cannot logout";
+				}
+
+				//username already logged in
+				for (int i = 0; i < clientSockets.size(); i++) {
+					if (usernames[clientSockets[i]] == username) {
+						std::string loggedInUsername = usernames[clientSocket];
+						if (loggedInUsername != username) {
+							return "You can only log yourself out, nice try..";
 						}
 						else {
-							return "User not found: " + username;
+							//logout rules
+							usernames[clientSocket] = i;
+							logouter = "Successfully logged out user: " + username;
+							return logouter;
 						}
 					}
-					else {
-						//invalid command format
-						return "Invalid format for send command. Usage: " + cmdChar + "send (username) (message)";
-					}
 				}
-				else if (message[0] == commandChar && strncmp(message + 1, "logout", 6) == 0) {
-					//extract name
-					std::string msg(message);
-					size_t split1 = msg.find(' ', 6);
-					std::string username = msg.substr(split1 + 1);
-
-					if (split1 != std::string::npos) {
-
-						//username exist or not
-						if ("" == hashTable.get(username)) {
-							return "Username does not exist, cannot logout";
-						}
-
-						//username already logged in
-						for (int i = 0; i < clientSockets.size(); i++) {
-							if (usernames[clientSockets[i]] == username) {
-								std::string loggedInUsername = usernames[clientSocket];
-								if (loggedInUsername != username) {
-									return "You can only log yourself out, nice try..";
-								}
-								else {
-									//logout rules
-									usernames[clientSocket] = i;
-									logouter = "Successfully logged out user: " + username;
-									return logouter;
-								}
-							}
-						}
-						//if user not found in login
-						return "User is not logged in.";
-					}
-					else {
-						//invalid command format
-						return "Invalid format for logout command. Usage: " + cmdChar + "logout (username)";
-					}
-				}
-				else {
-					std::string input = message;
-					return input;
-				}
+				//if user not found in login
+				return "User is not logged in.";
 			}
 			else {
-				return "User not logged in. Please use " + cmdChar + "register and " + cmdChar + "login to create an account to start chatting!";
+				//invalid command format
+				return "Invalid format for logout command. Usage: " + cmdChar + "logout (username)";
 			}
+		}
+		else {
+			std::string input = message;
+			return input;
+		}
+	}
+	else {
+		return "User not logged in. Please use " + cmdChar + "register and " + cmdChar + "login to create an account to start chatting!";
+	}
 }
 
 int Server::sendMessage(SOCKET clientSocket, char* data, int32_t length)
