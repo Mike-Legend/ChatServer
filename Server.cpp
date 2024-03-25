@@ -86,7 +86,7 @@ int main() {
 				std::cerr << "Failed to accept new connection\n";
 			}
 			else if (clientSockets.size() >= capacity + 10) {
-				//rejection message if full, set +10 buffer for users to attempt register for if/when chat capacity opens up.
+				//rejection message if server full, set +10 buffer for users to attempt register for if/when chat capacity opens up and maximize socket allowance.
 				std::string rejectionMessage = "Server capacity is full. You cannot join at the moment.";
 				int bytesSent = server.sendMessage(newSocket, const_cast<char*>(rejectionMessage.c_str()), rejectionMessage.length());
 				if (bytesSent != 0) {
@@ -119,7 +119,13 @@ int main() {
 				//receive messages from sockets
 				int bytesReceived = server.readMessage(clientSockets[i], buffer, MAX_BUFFER_SIZE);
 				if (bytesReceived != 0) {
-					//client disconnect, close socket
+					//TODO:
+					//client disconnect, logout if needed
+					/*if (usernames.find(clientSockets[i]) == usernames.end()) {
+						usernames[clientSockets[i]] = i;
+						std::cerr << "Client " << i << " disconnected\n";
+					}*/
+					//close socket
 					std::cerr << "Client " << i << " disconnected\n";
 					closesocket(clientSockets[i]);
 					clientSockets.erase(clientSockets.begin() + i);
@@ -373,10 +379,17 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			if (usernames.find(clientSocket) != usernames.end()) {
 				std::string loggedInUsername = usernames[clientSocket];
 				if (loggedInUsername == username) {
-					return "User is already logged in";
+					return "You are already logged in";
 				}
 				else {
-					return "You can not login to another account while logged in.";
+					return "You can not login to another account while logged in";
+				}
+			}
+
+			//user is already logged in from another client
+			for (const auto& user : usernames) {
+				if (user.second == username) {
+					return "User is already logged in from another client";
 				}
 			}
 
@@ -412,7 +425,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			return "No users logged in";
 		}
 		return "List of Active Clients: \n" + clientNames;
-		}
+	}
 
 	//dont allow unless logged in
 	if (usernames.find(clientSocket) != usernames.end()) {
