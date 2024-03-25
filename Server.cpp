@@ -145,6 +145,7 @@ int main() {
 					//command message or not
 					if (buffer[0] == commandChar) {
 						//send command response back to the same client
+						logDB.logCommand(buffer); //input user command log
 						int bytesSent = server.sendMessage(clientSockets[i], const_cast<char*>(responseMessage.c_str()), responseMessage.length());
 						if (bytesSent != 0) {
 							std::cerr << "Failed to send message to client " << i << "\n";
@@ -156,6 +157,7 @@ int main() {
 						}
 						else {
 							std::cout << "Sent command response to client " << i << ": " << responseMessage << std::endl;
+							logDB.logCommand(responseMessage); //output user command log
 							if (logouter == responseMessage) {
 								//client disconnect, close socket
 								std::cerr << "Client " << i << " disconnected\n";
@@ -169,6 +171,7 @@ int main() {
 						//dont allow unless logged in
 						if (usernames.find(clientSockets[i]) != usernames.end()) {
 							//regular message to all clients except sender and unregistered users
+							logDB.logMessage(buffer); //public message log
 							for (size_t j = 0; j < clientSockets.size(); ++j) {
 								if (i != j) {
 									if (usernames.find(clientSockets[j]) != usernames.end()) {
@@ -190,6 +193,7 @@ int main() {
 						}
 						else {
 							//send command response back to the same client for no login
+							logDB.logCommand(responseMessage); //output user command log
 							int bytesSent = server.sendMessage(clientSockets[i], const_cast<char*>(responseMessage.c_str()), responseMessage.length());
 							if (bytesSent != 0) {
 								std::cerr << "Failed to send command response to client " << i << "\n";
