@@ -124,7 +124,7 @@ int main() {
 						[&](const auto& entry) { return entry.second == usernames[clientSockets[i]]; });
 					if (it != usernames.end()) {
 						//remove name from list
-						std::cout << "Successfully logged out user: " + usernames[clientSockets[i]];
+						std::cout << "Successfully logged out user: " + usernames[clientSockets[i]] << std::endl;
 						usernames.erase(it);
 					}
 					//close socket
