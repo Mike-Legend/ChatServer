@@ -119,12 +119,14 @@ int main() {
 				//receive messages from sockets
 				int bytesReceived = server.readMessage(clientSockets[i], buffer, MAX_BUFFER_SIZE);
 				if (bytesReceived != 0) {
-					//TODO:
 					//client disconnect, logout if needed
-					/*if (usernames.find(clientSockets[i]) == usernames.end()) {
-						usernames[clientSockets[i]] = i;
-						std::cerr << "Client " << i << " disconnected\n";
-					}*/
+					auto it = std::find_if(usernames.begin(), usernames.end(),
+						[&](const auto& entry) { return entry.second == usernames[clientSockets[i]]; });
+					if (it != usernames.end()) {
+						//remove name from list
+						std::cout << "Successfully logged out user: " + usernames[clientSockets[i]];
+						usernames.erase(it);
+					}
 					//close socket
 					std::cerr << "Client " << i << " disconnected\n";
 					closesocket(clientSockets[i]);
@@ -490,23 +492,23 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 					return "Username does not exist, cannot logout";
 				}
 
-				//username already logged in
-				for (int i = 0; i < clientSockets.size(); i++) {
-					if (usernames[clientSockets[i]] == username) {
-						std::string loggedInUsername = usernames[clientSocket];
-						if (loggedInUsername != username) {
-							return "You can only log yourself out, nice try..";
-						}
-						else {
-							//logout rules
-							usernames[clientSocket] = i;
-							logouter = "Successfully logged out user: " + username;
-							return logouter;
-						}
+				//username login checks
+				auto it = std::find_if(usernames.begin(), usernames.end(),
+					[&](const auto& entry) { return entry.second == username; });
+				if (it != usernames.end()) {
+					//check its them
+					std::string loggedInUsername = usernames[clientSocket];
+					if (loggedInUsername != username) {
+						return "You can only log yourself out, nice try..";
 					}
+					//remove name from list
+					usernames.erase(it);
+					logouter = "Successfully logged out user: " + username;
+					return logouter;
 				}
-				//if user not found in login
-				return "User is not logged in.";
+				else {
+					return "User is not logged in.";
+				}
 			}
 			else {
 				//invalid command format
