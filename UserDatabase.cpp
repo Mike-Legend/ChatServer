@@ -15,6 +15,7 @@ void UserDatabase::insert(const std::string& key, const std::string& value) {
     int index = hash(key);
     table[index].push_back({ key, value });
     //store table to file at some point
+    size++;
 }
 
 std::string UserDatabase::get(const std::string& key) {
@@ -30,4 +31,5 @@ std::string UserDatabase::get(const std::string& key) {
 void UserDatabase::remove(const std::string& key) {
     int index = hash(key);
     table[index].remove_if([&key](const auto& pair) { return pair.first == key; });
+    size--;
 }

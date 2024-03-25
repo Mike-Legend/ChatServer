@@ -5,11 +5,13 @@
 
 class UserDatabase {
 private:
+    int size;
     static const int TABLE_SIZE = 100;
     std::vector<std::list<std::pair<std::string, std::string>>> table;
     int hash(const std::string& key);
 
 public:
+    int getSize() const {return size;}
     UserDatabase();
     ~UserDatabase();
 

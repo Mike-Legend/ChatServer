@@ -85,7 +85,7 @@ int main() {
 			if (newSocket == INVALID_SOCKET) {
 				std::cerr << "Failed to accept new connection\n";
 			}
-			else if (clientSockets.size() == capacity + 10) {
+			else if (clientSockets.size() >= capacity + 10) {
 				//rejection message if full, set +10 buffer for users to attempt register for if/when chat capacity opens up.
 				std::string rejectionMessage = "Server capacity is full. You cannot join at the moment.";
 				int bytesSent = server.sendMessage(newSocket, const_cast<char*>(rejectionMessage.c_str()), rejectionMessage.length());
@@ -321,8 +321,8 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 		size_t split1 = msg.find(' ', 9);
 		size_t split2 = msg.find(' ', split1 + 1);
 		if (split1 != std::string::npos && split2 != std::string::npos) {
-			//reject registration if chat capacity is full
-			if (clientSockets.size() == capacity + 10) {
+			//reject registration if registration capacity is full
+			if (hashTable >= capacity) {
 				std::string rejectionMessage = "Server capacity is full. You cannot join at the moment.";
 				int bytesSent = server.sendMessage(clientSocket, const_cast<char*>(rejectionMessage.c_str()), rejectionMessage.length());
 				if (bytesSent != 0) {
