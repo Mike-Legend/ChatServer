@@ -62,7 +62,6 @@ int main() {
 
 	//record start in logs
 	logDB.logCommand("--Server start--");
-	logDB.logMessage("--Server start--");
 
 	//server status
 	status = true;
