@@ -321,6 +321,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			helpLine = "Help Page 2/2:\n";
 			helpLine += cmdChar + "send (username) (message) - Send a private message to the user\n";
 			helpLine += cmdChar + "getlist - Sends a list of currently logged in users\n";
+			helpLine += cmdChar + "getlog - Sends a log of previously sent public messages\n";
 		}
 		else if (strlen(message) == 5) {
 			//help page 1 default with no page
