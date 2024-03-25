@@ -60,6 +60,10 @@ int main() {
 	timeout.tv_sec = 1;
 	timeout.tv_usec = 0;
 
+	//record start in logs
+	logDB.logCommand("--Server start--");
+	logDB.logMessage("--Server start--");
+
 	//server status
 	status = true;
 
@@ -523,34 +527,34 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 				return "No records of user messages";
 			}
 
-			// If the log is too long, split it into chunks
+			//if log is too long, split into chunks
 			if (log.size() >= MAX_BUFFER_SIZE) {
 				std::vector<std::string> messageChunks;
-				const int CHUNK_SIZE = 254; // Define the chunk size, room for end characters and output title
+				const int CHUNK_SIZE = 238; //chunk size, room for end characters and output title
 				int numChunks = log.size() / CHUNK_SIZE;
 				if (log.size() % CHUNK_SIZE != 0) {
 					numChunks++;
 				}
 
-				// Split the log into chunks
+				//split log into chunks
 				for (int i = 0; i < numChunks; ++i) {
 					int startPos = i * CHUNK_SIZE;
 					int chunkSize = std::min<int>(log.size() - startPos, CHUNK_SIZE);
-					std::string chunk = log.substr(startPos, chunkSize);
+					std::string chunk = "Message Log " + std::to_string(i + 1) + ":\n" + log.substr(startPos, chunkSize);
 					messageChunks.push_back(chunk);
 				}
 
-				// Send each chunk individually
-				for (const auto& chunk : messageChunks) {
-					int bytesSent = server.sendMessage(clientSocket, const_cast<char*>(chunk.c_str()), chunk.length());
+				//send each chunk
+				for (int i = 0; i < messageChunks.size(); i++) {
+					int bytesSent = server.sendMessage(clientSocket, const_cast<char*>(messageChunks[i].c_str()), (messageChunks[i].length()));
 					if (bytesSent != 0) {
 						std::cerr << "Failed to send message chunk\n";
 					}
 				}
-				return ""; // Return empty string since the messages have been sent separately
-			}
 
-			// If the log fits within a single message, send it as is
+				return "End of Log File";
+			}
+			//if fits in single buffer, send
 			return "Message Log:\n" + log;
 		}
 		else {
