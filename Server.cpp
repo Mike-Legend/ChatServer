@@ -13,6 +13,9 @@
 #include <list>
 #include <unordered_map>
 #include <cstring>
+#include "LogDatabase.h"
+#include <fstream>
+#include <iostream>
 
 #define MAX_BUFFER_SIZE 256
 
@@ -54,6 +57,9 @@ int main() {
 	struct timeval timeout;
 	timeout.tv_sec = 1;
 	timeout.tv_usec = 0;
+
+	//initialize LogFiles
+	LogDatabase logDB("LogFiles/commands.log", "LogFiles/messages.log");
 
 	//server status
 	status = true;
