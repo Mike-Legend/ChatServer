@@ -322,15 +322,9 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 		size_t split2 = msg.find(' ', split1 + 1);
 		if (split1 != std::string::npos && split2 != std::string::npos) {
 			//reject registration if registration capacity is full
-			if (hashTable >= capacity) {
+			if (hashTable.getSize() >= capacity) {
 				std::string rejectionMessage = "Server capacity is full. You cannot join at the moment.";
-				int bytesSent = server.sendMessage(clientSocket, const_cast<char*>(rejectionMessage.c_str()), rejectionMessage.length());
-				if (bytesSent != 0) {
-					std::cerr << "Failed to send rejection message to the new client\n";
-				}
-				else {
-					std::cout << "Sent rejection message to the new client\n";
-				}
+				return rejectionMessage;
 			}
 			//accept registration
 			else {
