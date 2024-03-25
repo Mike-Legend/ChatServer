@@ -398,12 +398,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			//check database registered
 			std::string storedPassword = hashTable.get(username);
 			if (storedPassword == password) {
-				//login rules
-				for (int i = 0; i < clientSockets.size(); i++) {
-					if (clientSockets[i] == clientSocket) {
-						usernames[clientSocket] = username;
-					}
-				}
+				usernames[clientSocket] = username;
 				return "Successfully logged in user: " + username;
 			}
 			else {
@@ -417,16 +412,13 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 	}
 	else if (message[0] == commandChar && strncmp(message + 1, "getlist", 7) == 0) {
 		std::string clientNames = "";
-		for (int i = 0; i < usernames.size(); i++) {
-			if (usernames.find(clientSockets[i]) != usernames.end()) {
-				clientNames.append(usernames[clientSockets[i]]);
-				clientNames.append("\n");
-			}
+		for (const auto& entry : usernames) {
+			clientNames += entry.second + "\n";
 		}
-		if (clientNames == "") {
+		if (clientNames.empty()) {
 			return "No users logged in";
 		}
-		return "List of Active Clients: \n" + clientNames;
+		return "List of Active Clients:\n" + clientNames;
 	}
 
 	//dont allow unless logged in
