@@ -321,24 +321,38 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 		size_t split1 = msg.find(' ', 9);
 		size_t split2 = msg.find(' ', split1 + 1);
 		if (split1 != std::string::npos && split2 != std::string::npos) {
-			//store username and password
-			std::string username = msg.substr(split1 + 1, split2 - split1 - 1);
-			std::string password = msg.substr(split2 + 1);
-
-			//username exist or not
-			if ("" != hashTable.get(username)) {
-				return "Username already exists, please choose a different name or login with existing account. Usage: " + cmdChar + "login (username) (password)";
+			//reject registration if chat capacity is full
+			if (clientSockets.size() == capacity + 10) {
+				std::string rejectionMessage = "Server capacity is full. You cannot join at the moment.";
+				int bytesSent = server.sendMessage(clientSocket, const_cast<char*>(rejectionMessage.c_str()), rejectionMessage.length());
+				if (bytesSent != 0) {
+					std::cerr << "Failed to send rejection message to the new client\n";
+				}
+				else {
+					std::cout << "Sent rejection message to the new client\n";
+				}
 			}
-			//store user data in database
-			hashTable.insert(username, password);
-
-			//check database registered
-			std::string storedPassword = hashTable.get(username);
-			if (storedPassword == password) {
-				return "Successfully registered user: " + username;
-			}
+			//accept registration
 			else {
-				return "Failed to register user: " + username + " - Server Error";
+				//store username and password
+				std::string username = msg.substr(split1 + 1, split2 - split1 - 1);
+				std::string password = msg.substr(split2 + 1);
+
+				//username exist or not
+				if ("" != hashTable.get(username)) {
+					return "Username already exists, please choose a different name or login with existing account. Usage: " + cmdChar + "login (username) (password)";
+				}
+				//store user data in database
+				hashTable.insert(username, password);
+
+				//check database registered
+				std::string storedPassword = hashTable.get(username);
+				if (storedPassword == password) {
+					return "Successfully registered user: " + username;
+				}
+				else {
+					return "Failed to register user: " + username + " - Server Error";
+				}
 			}
 		}
 		else {
