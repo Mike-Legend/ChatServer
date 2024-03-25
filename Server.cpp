@@ -369,24 +369,27 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 				return "Username does not exist, please register. Usage: " + cmdChar + "register (username) (password)";
 			}
 
-			//user already logged in
+			//user already logged in or trying to login to another account
 			if (usernames.find(clientSocket) != usernames.end()) {
 				std::string loggedInUsername = usernames[clientSocket];
 				if (loggedInUsername == username) {
 					return "User is already logged in";
 				}
-			}
-
-			//TODO:
-			//cannot login different account if already logged in
-			for (int i = 0; i < clientSockets.size(); i++) {
-				if (usernames[clientSockets[i]] == username) {
-					std::string loggedInUsername = usernames[clientSocket];
-					if (loggedInUsername == username) {
-						return "You can only log yourself out, nice try..";
-					}
+				else {
+					return "You can not login to another account while logged in.";
 				}
 			}
+
+			////TODO:
+			////cannot login different account if already logged in
+			//for (int i = 0; i < clientSockets.size(); i++) {
+			//	if (usernames[clientSockets[i]] == username) {
+			//		std::string loggedInUsername = usernames[clientSocket];
+			//		if (loggedInUsername == username) {
+			//			return "You can not login to another account while logged in.";
+			//		}
+			//	}
+			//}
 
 			//check database registered
 			std::string storedPassword = hashTable.get(username);
@@ -410,7 +413,7 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 	}
 	else if (message[0] == commandChar && strncmp(message + 1, "getlist", 7) == 0) {
 		std::string clientNames = "";
-		for (int i = 0; i < clientSockets.size(); i++) {
+		for (int i = 0; i < usernames.size(); i++) {
 			if (usernames.find(clientSockets[i]) != usernames.end()) {
 				clientNames.append(usernames[clientSockets[i]]);
 				clientNames.append("\n");
