@@ -16,6 +16,7 @@
 #include "LogDatabase.h"
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 
 #define MAX_BUFFER_SIZE 256
 
@@ -35,7 +36,7 @@ Server server;
 WSADATA wsaData;
 fd_set readSet;
 bool oneClient = false;
-std::string logouter = "";
+std::string logouter = "loggingout";
 LogDatabase logDB("LogFiles/commands.log", "LogFiles/messages.log");
 
 int main() {
@@ -521,6 +522,35 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 			if (log.empty()) {
 				return "No records of user messages";
 			}
+
+			// If the log is too long, split it into chunks
+			if (log.size() >= MAX_BUFFER_SIZE) {
+				std::vector<std::string> messageChunks;
+				const int CHUNK_SIZE = 254; // Define the chunk size, room for end characters and output title
+				int numChunks = log.size() / CHUNK_SIZE;
+				if (log.size() % CHUNK_SIZE != 0) {
+					numChunks++;
+				}
+
+				// Split the log into chunks
+				for (int i = 0; i < numChunks; ++i) {
+					int startPos = i * CHUNK_SIZE;
+					int chunkSize = std::min<int>(log.size() - startPos, CHUNK_SIZE);
+					std::string chunk = log.substr(startPos, chunkSize);
+					messageChunks.push_back(chunk);
+				}
+
+				// Send each chunk individually
+				for (const auto& chunk : messageChunks) {
+					int bytesSent = server.sendMessage(clientSocket, const_cast<char*>(chunk.c_str()), chunk.length());
+					if (bytesSent != 0) {
+						std::cerr << "Failed to send message chunk\n";
+					}
+				}
+				return ""; // Return empty string since the messages have been sent separately
+			}
+
+			// If the log fits within a single message, send it as is
 			return "Message Log:\n" + log;
 		}
 		else {
