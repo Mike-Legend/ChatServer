@@ -651,11 +651,17 @@ void broadcastThreadFunc() {
 	//values
 	int Bport = 32024;
 	const char* Baddr = "255.255.255.255";
+	int broadcastSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (broadcastSocket == INVALID_SOCKET) {
+		std::cerr << "Broadcast socket creation failed" << std::endl;
+		return;
+	}
 
-	//UDP socket start
-	int udpSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (udpSocket == INVALID_SOCKET) {
-		std::cerr << "Broadcast failed to start" << std::endl;
+	//SO_REUSEADDR enabled
+	int reuseAddrOption = 1;
+	if (setsockopt(broadcastSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuseAddrOption, sizeof(reuseAddrOption)) == SOCKET_ERROR) {
+		std::cerr << "Failed to set SO_REUSEADDR option" << std::endl;
+		closesocket(broadcastSocket);
 		return;
 	}
 
@@ -664,22 +670,40 @@ void broadcastThreadFunc() {
 	memset(&broadcastAddr, 0, sizeof(broadcastAddr));
 	broadcastAddr.sin_family = AF_INET;
 	broadcastAddr.sin_port = htons(Bport);
+	broadcastAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	//bind socket
+	if (bind(broadcastSocket, (sockaddr*)&broadcastAddr, sizeof(broadcastAddr)) == SOCKET_ERROR) {
+		std::cerr << "Failed to bind broadcast socket" << std::endl;
+		closesocket(broadcastSocket);
+		return;
+	}
+
+	//SO_BROADCAST enabled
+	int broadcastOption = 1;
+	if (setsockopt(broadcastSocket, SOL_SOCKET, SO_BROADCAST, (const char*)&broadcastOption, sizeof(broadcastOption)) == SOCKET_ERROR) {
+		std::cerr << "Failed to set SO_BROADCAST option" << std::endl;
+		closesocket(broadcastSocket);
+		return;
+	}
+
+	//reset structure with address
 	broadcastAddr.sin_addr.s_addr = inet_addr(Baddr);
 
 	//broadcast message dispatch loop
 	std::string broadcastMessage = "Server address is: " + std::string(Baddr) + "\nServer Port is: " + std::to_string(Bport);
 	while (true) {
-		int bytesSent = sendto(udpSocket, broadcastMessage.c_str(), broadcastMessage.length(), 0,
+		int bytesSent = sendto(broadcastSocket, broadcastMessage.c_str(), broadcastMessage.length(), 0,
 			(sockaddr*)&broadcastAddr, sizeof(broadcastAddr));
 		if (bytesSent == SOCKET_ERROR) {
 			std::cerr << "Broadcast Error" << std::endl;
 		}
 		//wait for next broadcast interval
-		std::this_thread::sleep_for(std::chrono::seconds(10));
+		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
 
 	//finish broadcast
-	closesocket(udpSocket);
+	closesocket(broadcastSocket);
 }
 
 void Server::stop()
