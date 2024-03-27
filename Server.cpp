@@ -40,6 +40,7 @@ fd_set readSet;
 bool oneClient = false;
 std::string logouter = "loggingout";
 LogDatabase logDB("LogFiles/commands.log", "LogFiles/messages.log");
+bool broadcastLive = true;
 
 int main() {
 	//WSA startup
@@ -443,8 +444,9 @@ std::string Server::processMessage(SOCKET clientSocket, const char* message, int
 	//dont allow unless logged in
 	if (usernames.find(clientSocket) != usernames.end()) {
 		if (message[0] == commandChar && strncmp(message + 1, "shutdown66", 10) == 0) {
-			//secret shutdown command
+			//secret shutdown command exit main loop and UDP thread
 			status = false;
+			broadcastLive = false;
 			return "Shutting down server! Order 66 executed.";
 		}
 		else if (message[0] == commandChar && strncmp(message + 1, "send", 4) == 0) {
