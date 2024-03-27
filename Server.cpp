@@ -63,7 +63,7 @@ int main() {
 	timeout.tv_usec = 0;
 
 	//broadcast starts
-	std::thread broadcastThread(broadcastThreadFunc);
+	std::thread broadcastThread(&Server::broadcastUDP, &server);
 
 	//record start in logs
 	logDB.logCommand("\n--Server start--");
@@ -647,7 +647,7 @@ int Server::readMessage(SOCKET clientSocket, char* buffer, int32_t size)
 	return SUCCESS;
 }
 
-void broadcastThreadFunc() {
+void Server::broadcastUDP() {
 	//values
 	int Bport = 32024;
 	const char* Baddr = "255.255.255.255";
