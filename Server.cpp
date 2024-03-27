@@ -692,6 +692,7 @@ void Server::broadcastUDP(const std::string& ipv4) {
 	}
 
 	//reset structure with address
+	broadcastAddr.sin_port = htons(0); //all ports
 	broadcastAddr.sin_addr.s_addr = inet_addr(addrAll); //all devices in same network
 
 	//broadcast message dispatch loop
