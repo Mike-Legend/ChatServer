@@ -17,6 +17,8 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <thread>
+#include <chrono>
 
 #define MAX_BUFFER_SIZE 256
 
@@ -59,6 +61,9 @@ int main() {
 	struct timeval timeout;
 	timeout.tv_sec = 1;
 	timeout.tv_usec = 0;
+
+	//broadcast starts
+	std::thread broadcastThread(broadcastThreadFunc);
 
 	//record start in logs
 	logDB.logCommand("\n--Server start--");
@@ -211,6 +216,7 @@ int main() {
 	}
 
 	//server stop
+	broadcastThread.join();
 	server.stop();
 
 	return 0;
@@ -639,6 +645,41 @@ int Server::readMessage(SOCKET clientSocket, char* buffer, int32_t size)
 	}
 
 	return SUCCESS;
+}
+
+void broadcastThreadFunc() {
+	//values
+	int Bport = 32024;
+	const char* Baddr = "255.255.255.255";
+
+	//UDP socket start
+	int udpSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (udpSocket == INVALID_SOCKET) {
+		std::cerr << "Broadcast failed to start" << std::endl;
+		return;
+	}
+
+	//broadcast address creation
+	sockaddr_in broadcastAddr;
+	memset(&broadcastAddr, 0, sizeof(broadcastAddr));
+	broadcastAddr.sin_family = AF_INET;
+	broadcastAddr.sin_port = htons(Bport);
+	broadcastAddr.sin_addr.s_addr = inet_addr(Baddr);
+
+	//broadcast message dispatch loop
+	std::string broadcastMessage = "Server address is: " + std::string(Baddr) + "\nServer Port is: " + std::to_string(Bport);
+	while (true) {
+		int bytesSent = sendto(udpSocket, broadcastMessage.c_str(), broadcastMessage.length(), 0,
+			(sockaddr*)&broadcastAddr, sizeof(broadcastAddr));
+		if (bytesSent == SOCKET_ERROR) {
+			std::cerr << "Broadcast Error" << std::endl;
+		}
+		//wait for next broadcast interval
+		std::this_thread::sleep_for(std::chrono::seconds(10));
+	}
+
+	//finish broadcast
+	closesocket(udpSocket);
 }
 
 void Server::stop()
