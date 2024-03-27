@@ -41,6 +41,7 @@ bool oneClient = false;
 std::string logouter = "loggingout";
 LogDatabase logDB("LogFiles/commands.log", "LogFiles/messages.log");
 bool broadcastLive = true;
+std::string serveraddr = "";
 
 int main() {
 	//WSA startup
@@ -64,7 +65,7 @@ int main() {
 	timeout.tv_usec = 0;
 
 	//broadcast starts
-	std::thread broadcastThread(&Server::broadcastUDP, &server);
+	std::thread broadcastThread(&Server::broadcastUDP, &server, serveraddr);
 
 	//record start in logs
 	logDB.logCommand("\n--Server start--");
@@ -260,6 +261,7 @@ void Server::info() {
 		}
 		char ip[INET6_ADDRSTRLEN];
 		inet_ntop(ptr->ai_family, addr, ip, sizeof(ip));
+		if (iptype == "IPv4") { serveraddr = ip; }
 		std::cout << "Address " << count << " (" << iptype << "): " << ip << std::endl;
 	}
 }
@@ -649,21 +651,13 @@ int Server::readMessage(SOCKET clientSocket, char* buffer, int32_t size)
 	return SUCCESS;
 }
 
-void Server::broadcastUDP() {
+void Server::broadcastUDP(const std::string& ipv4) {
 	//values
-	int Bport = 32024;
-	const char* Baddr = "255.255.255.255";
+	const char* addrAll = "255.255.255.255";
+	const char* Baddr = ipv4.c_str();
 	int broadcastSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (broadcastSocket == INVALID_SOCKET) {
 		std::cerr << "Broadcast socket failed to set" << std::endl;
-		return;
-	}
-
-	//SO_REUSEADDR enabled
-	int reuseAddrOption = 1;
-	if (setsockopt(broadcastSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuseAddrOption, sizeof(reuseAddrOption)) == SOCKET_ERROR) {
-		std::cerr << "Failed to set SO_REUSEADDR" << std::endl;
-		closesocket(broadcastSocket);
 		return;
 	}
 
@@ -671,12 +665,20 @@ void Server::broadcastUDP() {
 	sockaddr_in broadcastAddr;
 	memset(&broadcastAddr, 0, sizeof(broadcastAddr));
 	broadcastAddr.sin_family = AF_INET;
-	broadcastAddr.sin_port = htons(Bport);
-	broadcastAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	broadcastAddr.sin_port = htons(port);
+	broadcastAddr.sin_addr.s_addr = htonl(INADDR_ANY); //any network interface
 
 	//bind socket
 	if (bind(broadcastSocket, (sockaddr*)&broadcastAddr, sizeof(broadcastAddr)) == SOCKET_ERROR) {
 		std::cerr << "Failed to bind broadcast socket" << std::endl;
+		closesocket(broadcastSocket);
+		return;
+	}
+
+	//SO_REUSEADDR enabled
+	int reuseAddrOption = 1;
+	if (setsockopt(broadcastSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuseAddrOption, sizeof(reuseAddrOption)) == SOCKET_ERROR) {
+		std::cerr << "Failed to set SO_REUSEADDR" << std::endl;
 		closesocket(broadcastSocket);
 		return;
 	}
@@ -690,10 +692,10 @@ void Server::broadcastUDP() {
 	}
 
 	//reset structure with address
-	broadcastAddr.sin_addr.s_addr = inet_addr(Baddr);
+	broadcastAddr.sin_addr.s_addr = inet_addr(addrAll); //all devices in same network
 
 	//broadcast message dispatch loop
-	std::string broadcastMessage = "Server address is: " + std::string(Baddr) + "\nServer Port is: " + std::to_string(Bport);
+	std::string broadcastMessage = "Server address is: " + std::string(Baddr) + "\nServer Port is: " + std::to_string(port);
 	while (broadcastLive) {
 		int bytesSent = sendto(broadcastSocket, broadcastMessage.c_str(), broadcastMessage.length(), 0,
 			(sockaddr*)&broadcastAddr, sizeof(broadcastAddr));
