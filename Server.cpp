@@ -655,14 +655,14 @@ void Server::broadcastUDP() {
 	const char* Baddr = "255.255.255.255";
 	int broadcastSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (broadcastSocket == INVALID_SOCKET) {
-		std::cerr << "Broadcast socket creation failed" << std::endl;
+		std::cerr << "Broadcast socket failed to set" << std::endl;
 		return;
 	}
 
 	//SO_REUSEADDR enabled
 	int reuseAddrOption = 1;
 	if (setsockopt(broadcastSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuseAddrOption, sizeof(reuseAddrOption)) == SOCKET_ERROR) {
-		std::cerr << "Failed to set SO_REUSEADDR option" << std::endl;
+		std::cerr << "Failed to set SO_REUSEADDR" << std::endl;
 		closesocket(broadcastSocket);
 		return;
 	}
@@ -684,7 +684,7 @@ void Server::broadcastUDP() {
 	//SO_BROADCAST enabled
 	int broadcastOption = 1;
 	if (setsockopt(broadcastSocket, SOL_SOCKET, SO_BROADCAST, (const char*)&broadcastOption, sizeof(broadcastOption)) == SOCKET_ERROR) {
-		std::cerr << "Failed to set SO_BROADCAST option" << std::endl;
+		std::cerr << "Failed to set SO_BROADCAST" << std::endl;
 		closesocket(broadcastSocket);
 		return;
 	}
@@ -694,7 +694,7 @@ void Server::broadcastUDP() {
 
 	//broadcast message dispatch loop
 	std::string broadcastMessage = "Server address is: " + std::string(Baddr) + "\nServer Port is: " + std::to_string(Bport);
-	while (true) {
+	while (broadcastLive) {
 		int bytesSent = sendto(broadcastSocket, broadcastMessage.c_str(), broadcastMessage.length(), 0,
 			(sockaddr*)&broadcastAddr, sizeof(broadcastAddr));
 		if (bytesSent == SOCKET_ERROR) {
