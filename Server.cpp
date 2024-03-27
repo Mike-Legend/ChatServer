@@ -653,8 +653,8 @@ int Server::readMessage(SOCKET clientSocket, char* buffer, int32_t size)
 
 void Server::broadcastUDP(const std::string& ipv4) {
 	//values
-	const char* addrAll = "255.255.255.255";
-	const char* Baddr = ipv4.c_str();
+	const char* addrAll = "255.255.255.255"; //shared network traffic
+	const char* Baddr = ipv4.c_str(); //server address
 	int broadcastSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (broadcastSocket == INVALID_SOCKET) {
 		std::cerr << "Broadcast socket failed to set" << std::endl;
